@@ -167,7 +167,7 @@ public class FlushConsolidationHandler implements ChannelHandler {
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        if (!ctx.channel().isWritable()) {
+        if (ctx.channel().writableBytes() == 0) {
             // The writability of the channel changed to false, so flush all consolidated flushes now to free up memory.
             flushIfNeeded(ctx);
         }

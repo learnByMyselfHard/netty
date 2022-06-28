@@ -205,7 +205,7 @@ final class DefaultHttp2StreamChannel extends DefaultAttributeMap implements Htt
         // prevent excessive buffering in the parent outbound buffer. If the parent is not writable
         // we will mark the child channel as writable once the parent becomes writable by calling
         // trySetWritable() later.
-        if (newWriteBufferSize < config().getWriteBufferLowWaterMark() && parent().isWritable()) {
+        if (newWriteBufferSize < config().getWriteBufferLowWaterMark() && parent().writableBytes() > 0) {
             setWritable(invokeLater);
         }
     }
@@ -350,13 +350,11 @@ final class DefaultHttp2StreamChannel extends DefaultAttributeMap implements Htt
     }
 
     @Override
-    public long bytesBeforeUnwritable() {
+    public long writableBytes() {
         long bytes = config().getWriteBufferHighWaterMark() - totalPendingSize - pipeline.pendingOutboundBytes();
-        // If bytes is negative we know we are not writable, but if bytes is non-negative we have to check
-        // writability. Note that totalPendingSize and isWritable() use different volatile variables that are not
-        // synchronized together. totalPendingSize will be updated before isWritable().
+        // If bytes is negative we know we are not writable.
         if (bytes > 0) {
-            return isWritable() ? bytes : 0;
+            return isWritable()  ? bytes : 0;
         }
         return 0;
     }

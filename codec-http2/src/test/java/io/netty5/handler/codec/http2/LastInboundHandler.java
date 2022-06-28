@@ -116,9 +116,9 @@ public class LastInboundHandler implements ChannelHandler {
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         if ("".equals(writabilityStates)) {
-            writabilityStates = String.valueOf(ctx.channel().isWritable());
+            writabilityStates = String.valueOf(ctx.channel().writableBytes() > 0);
         } else {
-            writabilityStates += "," + ctx.channel().isWritable();
+            writabilityStates += "," + (ctx.channel().writableBytes() > 0);
         }
         ctx.fireChannelWritabilityChanged();
     }

@@ -132,7 +132,7 @@ public class ChunkedWriteHandler implements ChannelHandler {
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        if (ctx.channel().isWritable()) {
+        if (ctx.channel().writableBytes() > 0) {
             // channel is writable again try to continue flushing
             doFlush(ctx);
         }
@@ -188,7 +188,7 @@ public class ChunkedWriteHandler implements ChannelHandler {
 
         boolean requiresFlush = true;
         BufferAllocator allocator = ctx.bufferAllocator();
-        while (channel.isWritable()) {
+        while (channel.writableBytes() > 0) {
             final PendingWrite currentWrite = queue.peek();
 
             if (currentWrite == null) {
@@ -270,7 +270,7 @@ public class ChunkedWriteHandler implements ChannelHandler {
                         f.addListener(future -> handleEndOfInputFuture(future, currentWrite));
                     }
                 } else {
-                    final boolean resume = !channel.isWritable();
+                    final boolean resume = channel.writableBytes() == 0;
                     if (f.isDone()) {
                         handleFuture(channel, f, currentWrite, resume);
                     } else {
@@ -311,7 +311,7 @@ public class ChunkedWriteHandler implements ChannelHandler {
             closeInput(input);
             currentWrite.fail(future.cause());
         } else {
-            if (resume && channel.isWritable()) {
+            if (resume && channel.writableBytes() > 0) {
                 resumeTransfer();
             }
         }

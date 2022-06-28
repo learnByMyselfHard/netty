@@ -187,7 +187,7 @@ public final class Http2MultiplexHandler extends Http2ChannelDuplexHandler {
 
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
-        if (ctx.channel().isWritable()) {
+        if (ctx.channel().writableBytes() > 0) {
             // While the writability state may change during iterating of the streams we just set all of the streams
             // to writable to not affect fairness. These will be "limited" by their own watermarks in any case.
             forEachActiveStream(DefaultHttp2StreamChannel.WRITABLE_VISITOR);

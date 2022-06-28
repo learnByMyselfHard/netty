@@ -437,7 +437,7 @@ public class Http2ConnectionHandler extends ByteToMessageDecoder implements Http
         // Writability is expected to change while we are writing. We cannot allow this event to trigger reentering
         // the allocation and write loop. Reentering the event loop will lead to over or illegal allocation.
         try {
-            if (ctx.channel().isWritable()) {
+            if (ctx.channel().writableBytes() > 0) {
                 flush(ctx);
             }
             encoder.flowController().channelWritabilityChanged();

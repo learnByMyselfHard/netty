@@ -259,7 +259,7 @@ public class SocketShutdownOutputBySelfTest extends AbstractClientSocketTest {
 
         @Override
         public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-            writabilityQueue.add(ctx.channel().isWritable());
+            writabilityQueue.add(ctx.channel().writableBytes() > 0);
         }
 
         @Override

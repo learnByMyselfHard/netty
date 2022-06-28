@@ -87,7 +87,7 @@ final class LoggingHandler implements ChannelHandler {
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        log(Event.WRITABILITY, "writable=" + ctx.channel().isWritable());
+        log(Event.WRITABILITY, "writable=" + (ctx.channel().writableBytes() > 0));
         ctx.fireChannelWritabilityChanged();
     }
 

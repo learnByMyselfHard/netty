@@ -30,6 +30,7 @@ import java.util.List;
 import static io.netty5.buffer.api.DefaultBufferAllocators.preferredAllocator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -304,7 +305,7 @@ public class PendingWriteQueueTest {
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             ctx.fireChannelActive();
             assertQueueEmpty(queue);
-            assertTrue(ctx.channel().isWritable(), "Should be writable");
+            assertNotEquals(0, ctx.channel().writableBytes(), "Should be writable");
         }
 
         @Override

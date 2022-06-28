@@ -61,7 +61,7 @@ public class SocketConditionalWritabilityTest extends AbstractSocketTest {
 
                         @Override
                         public void flush(ChannelHandlerContext ctx) {
-                            if (ctx.channel().isWritable()) {
+                            if (ctx.channel().writableBytes() > 0) {
                                 writeRemainingBytes(ctx);
                             } else {
                                 ctx.flush();
@@ -70,14 +70,14 @@ public class SocketConditionalWritabilityTest extends AbstractSocketTest {
 
                         @Override
                         public void channelWritabilityChanged(ChannelHandlerContext ctx) {
-                            if (ctx.channel().isWritable()) {
+                            if (ctx.channel().writableBytes() > 0) {
                                 writeRemainingBytes(ctx);
                             }
                             ctx.fireChannelWritabilityChanged();
                         }
 
                         private void writeRemainingBytes(ChannelHandlerContext ctx) {
-                            while (ctx.channel().isWritable() && bytesWritten < expectedBytes) {
+                            while (ctx.channel().writableBytes() > 0 && bytesWritten < expectedBytes) {
                                 int chunkSize = Math.min(expectedBytes - bytesWritten, maxWriteChunkSize);
                                 bytesWritten += chunkSize;
                                 Buffer buffer = ctx.bufferAllocator().allocate(chunkSize);

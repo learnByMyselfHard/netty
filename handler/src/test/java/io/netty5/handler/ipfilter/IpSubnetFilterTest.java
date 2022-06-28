@@ -30,6 +30,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -108,7 +109,7 @@ public class IpSubnetFilterTest {
             @Override
             protected Future<Void> channelRejected(ChannelHandlerContext ctx, InetSocketAddress remoteAddress) {
                 assertTrue(ctx.channel().isActive());
-                assertTrue(ctx.channel().isWritable());
+                assertNotEquals(0, ctx.channel().writableBytes());
                 assertEquals("192.168.57.1", remoteAddress.getHostName());
 
                 return ctx.writeAndFlush(ctx.bufferAllocator().copyOf(message));

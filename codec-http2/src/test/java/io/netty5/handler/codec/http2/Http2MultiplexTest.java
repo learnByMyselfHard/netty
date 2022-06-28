@@ -32,6 +32,7 @@ import io.netty5.util.concurrent.Future;
 import io.netty5.util.concurrent.ImmediateEventExecutor;
 import io.netty5.util.concurrent.Promise;
 import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -866,19 +867,18 @@ public class Http2MultiplexTest {
         Http2StreamChannel childChannel = newOutboundStream(new ChannelHandler() { });
         assertTrue(childChannel.isActive());
 
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         childChannel.writeAndFlush(new DefaultHttp2HeadersFrame(new DefaultHttp2Headers()));
         parentChannel.flush();
 
         // Test for initial window size
         assertTrue(initialRemoteStreamWindow < childChannel.config().getWriteBufferHighWaterMark());
 
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         int size = 16 * 1024 * 1024;
         childChannel.write(new DefaultHttp2DataFrame(
                 onHeapAllocator().allocate(size).fill((byte) 0).writerOffset(size).send()));
-        assertEquals(0, childChannel.bytesBeforeUnwritable());
-        assertFalse(childChannel.isWritable());
+        assertEquals(0, childChannel.writableBytes());
     }
 
     @Test
@@ -886,49 +886,49 @@ public class Http2MultiplexTest {
         Http2StreamChannel childChannel = newOutboundStream(new ChannelHandler() { });
         childChannel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(2048, 4096));
         parentChannel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(256, 512));
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         assertTrue(parentChannel.isActive());
 
         childChannel.writeAndFlush(new DefaultHttp2HeadersFrame(new DefaultHttp2Headers()));
         parentChannel.flush();
 
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         childChannel.write(new DefaultHttp2DataFrame(bb(256).send()));
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         childChannel.writeAndFlush(new DefaultHttp2DataFrame(bb(512).send()));
 
-        long bytesBeforeUnwritable = childChannel.bytesBeforeUnwritable();
+        long bytesBeforeUnwritable = childChannel.writableBytes();
         assertNotEquals(0, bytesBeforeUnwritable);
         // Add something to the ChannelOutboundBuffer of the parent to simulate queuing in the parents channel buffer
         // and verify that this only affect the writability of the parent channel while the child stays writable
         // until it used all of its credits.
         parentChannel.pipeline().firstContext().write(
                 onHeapAllocator().allocate(800).skipWritableBytes(800));
-        assertFalse(parentChannel.isWritable());
+        assertEquals(0, parentChannel.writableBytes());
 
-        assertTrue(childChannel.isWritable());
-        assertEquals(4096, childChannel.bytesBeforeUnwritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
+        assertEquals(4096, childChannel.writableBytes());
 
         // Flush everything which simulate writing everything to the socket.
         parentChannel.flush();
-        assertTrue(parentChannel.isWritable());
-        assertTrue(childChannel.isWritable());
-        assertEquals(bytesBeforeUnwritable, childChannel.bytesBeforeUnwritable());
+        assertThat(parentChannel.writableBytes(), Matchers.greaterThan(0L));
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
+        assertEquals(bytesBeforeUnwritable, childChannel.writableBytes());
 
         Future<Void> future = childChannel.writeAndFlush(new DefaultHttp2DataFrame(
                 bb((int) bytesBeforeUnwritable).send()));
-        assertFalse(childChannel.isWritable());
-        assertTrue(parentChannel.isWritable());
+        assertEquals(0, childChannel.writableBytes());
+        assertThat(parentChannel.writableBytes(), Matchers.greaterThan(0L));
 
         parentChannel.flush();
         assertFalse(future.isDone());
-        assertTrue(parentChannel.isWritable());
-        assertFalse(childChannel.isWritable());
+        assertThat(parentChannel.writableBytes(), Matchers.greaterThan(0L));
+        assertEquals(0, childChannel.writableBytes());
 
         // Now write an window update frame for the stream which then should ensure we will flush the bytes that were
         // queued in the RemoteFlowController before for the stream.
         frameInboundWriter.writeInboundWindowUpdate(childChannel.stream().id(), (int) bytesBeforeUnwritable);
-        assertTrue(childChannel.isWritable());
+        assertThat(childChannel.writableBytes(), Matchers.greaterThan(0L));
         assertTrue(future.isDone());
     }
 

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.channels.ClosedChannelException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class ReentrantChannelTest extends BaseChannelTest {
@@ -186,14 +186,14 @@ public class ReentrantChannelTest extends BaseChannelTest {
         clientChannel.pipeline().addLast(new ChannelHandler() {
             @Override
             public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-                if (!ctx.channel().isWritable()) {
+                if (ctx.channel().writableBytes() == 0) {
                     ctx.channel().flush();
                 }
                 ctx.fireChannelWritabilityChanged();
             }
         });
 
-        assertTrue(clientChannel.isWritable());
+        assertNotEquals(0, clientChannel.writableBytes());
 
         clientChannel.write(createTestBuffer(2000)).sync();
         clientChannel.close().sync();
@@ -235,14 +235,14 @@ public class ReentrantChannelTest extends BaseChannelTest {
         clientChannel.pipeline().addLast(new ChannelHandler() {
             @Override
             public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-                if (!ctx.channel().isWritable()) {
+                if (ctx.channel().writableBytes() == 0) {
                     ctx.channel().flush();
                 }
                 ctx.fireChannelWritabilityChanged();
             }
         });
 
-        assertTrue(clientChannel.isWritable());
+        assertNotEquals(0, clientChannel.writableBytes());
 
         clientChannel.write(createTestBuffer(2000)).sync();
         clientChannel.close().sync();
