@@ -52,6 +52,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
     private final ChannelId id;
     private final ChannelPipeline pipeline;
     private final ClosePromise closePromise;
+    private final Runnable fireChannelWritabilityChangedTask;
 
     private volatile L localAddress;
     private volatile R remoteAddress;
@@ -101,6 +102,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         outboundBuffer = new ChannelOutboundBuffer(eventLoop);
         this.id = id;
         pipeline = newChannelPipeline();
+        fireChannelWritabilityChangedTask = () -> pipeline().fireChannelWritabilityChanged();
     }
 
     private static EventLoop validateEventLoop(EventLoop eventLoop) {
@@ -205,7 +207,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         long totalPending = totalPending();
         if (totalPending == -1) {
             // Already closed.
-            return Long.MAX_VALUE;
+            return 0;
         }
 
         long bytes = config().getWriteBufferHighWaterMark() -
@@ -432,20 +434,27 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         close(promise, closedChannelException, closedChannelException);
     }
 
-    private void updateWritabilityIfNeeded(boolean notify) {
+    private void updateWritabilityIfNeeded(boolean notify, boolean notifyLater) {
         long totalPending = totalPending();
         if (totalPending > config().getWriteBufferHighWaterMark()) {
             if (WRITABLE_UPDATER.compareAndSet(this, 1, 0)) {
-                if (notify) {
-                    pipeline().fireChannelWritabilityChanged();
-                }
+                fireChannelWritabilityChangedIfNeeded(notify, notifyLater);
             }
         } else if (totalPending < config().getWriteBufferLowWaterMark()) {
             if (WRITABLE_UPDATER.compareAndSet(this, 0, 1)) {
-                if (notify) {
-                    pipeline().fireChannelWritabilityChanged();
-                }
+                fireChannelWritabilityChangedIfNeeded(notify, notifyLater);
             }
+        }
+    }
+
+    private void fireChannelWritabilityChangedIfNeeded(boolean notify, boolean notifyLater) {
+        if (!notify) {
+            return;
+        }
+        if (notifyLater) {
+            executor().execute(fireChannelWritabilityChangedTask);
+        } else {
+            pipeline().fireChannelWritabilityChanged();
         }
     }
 
@@ -552,7 +561,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         if (outboundBuffer != null) {
             // Fail all the queued messages
             outboundBuffer.failFlushedAndClose(cause, closeCause);
-            updateWritabilityIfNeeded(false);
+            updateWritabilityIfNeeded(false, false);
         }
     }
 
@@ -756,7 +765,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         }
 
         outboundBuffer.addMessage(msg, size, promise);
-        updateWritabilityIfNeeded(true);
+        updateWritabilityIfNeeded(true, false);
     }
 
     private void flushTransport() {
@@ -791,7 +800,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
                 if (!outboundBuffer.isEmpty()) {
                     if (isOpen()) {
                         outboundBuffer.failFlushed(new NotYetConnectedException());
-                        updateWritabilityIfNeeded(true);
+                        updateWritabilityIfNeeded(true, true);
                     } else {
                         // Do not trigger channelWritabilityChanged because the channel is closed already.
                         outboundBuffer.failFlushed(newClosedChannelException(initialCloseCause, "flush0()"));
@@ -808,7 +817,9 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         } catch (Throwable t) {
             handleWriteError(t);
         } finally {
-            updateWritabilityIfNeeded(true);
+            // It's important that we call this with notifyLater true so we not get into trouble when flush() is called
+            // again in channelWritabilityChanged(...).
+            updateWritabilityIfNeeded(true, true);
             inFlush0 = false;
         }
     }
@@ -1086,7 +1097,7 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
 
         @Override
         protected final void pendingOutboundBytesUpdated(long pendingOutboundBytes) {
-            abstractChannel().updateWritabilityIfNeeded(true);
+            abstractChannel().updateWritabilityIfNeeded(true, false);
         }
 
         @Override
