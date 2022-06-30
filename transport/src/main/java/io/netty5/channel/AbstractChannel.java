@@ -553,7 +553,6 @@ public abstract class AbstractChannel<P extends Channel, L extends SocketAddress
         } else {
             fireChannelInactiveAndDeregister(wasActive);
         }
-
     }
 
     private void closeAndUpdateWritability(
