@@ -17,6 +17,7 @@ package io.netty5.channel;
 
 import io.netty5.buffer.api.Buffer;
 import io.netty5.buffer.api.BufferAllocator;
+import io.netty5.util.concurrent.ThreadAwareExecutor;
 
 /**
  * Enables a {@link ChannelHandler} to interact with its {@link ChannelPipeline}
@@ -71,7 +72,7 @@ import io.netty5.buffer.api.BufferAllocator;
  * what fundamental differences they have, how they flow in a  pipeline,  and how to handle
  * the operation in your application.
  */
-public interface ChannelHandlerContext extends ChannelInboundInvoker, ChannelOutboundInvoker {
+public interface ChannelHandlerContext extends ChannelInboundInvoker, ChannelOutboundInvoker, ThreadAwareExecutor {
 
     /**
      * Return the {@link Channel} which is bound to the {@link ChannelHandlerContext}.
@@ -138,6 +139,22 @@ public interface ChannelHandlerContext extends ChannelInboundInvoker, ChannelOut
      * Return the assigned {@link ChannelPipeline}
      */
     ChannelPipeline pipeline();
+
+    /**
+     * Execution of the given task on this {@link ChannelHandlerContext}.
+     * This method should be used if you want to continue with the execution of some {@link ChannelHandler}
+     * specific logic. The processing is quaranteed to be done on the {@link #executor()}.
+     *
+     * @param task                                              the task to run.
+     * @throws java.util.concurrent.RejectedExecutionException  might be thrown if the {@link #executor()} is shutdown
+     *                                                          already.
+     */
+    void execute(Runnable task);
+
+    @Override
+    default boolean inExecutorThread() {
+        return executor().inEventLoop();
+    }
 
     /**
      * Return the assigned {@link BufferAllocator} which will be used to allocate {@link Buffer}s.

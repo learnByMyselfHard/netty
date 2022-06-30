@@ -536,10 +536,10 @@ public class SslHandler extends ByteToMessageDecoder {
     public Future<Void> closeOutbound() {
         final ChannelHandlerContext ctx = this.ctx;
         Promise<Void> promise = ctx.newPromise();
-        if (ctx.executor().inEventLoop()) {
+        if (ctx.inExecutorThread()) {
             closeOutbound0(promise);
         } else {
-            ctx.executor().execute(() -> closeOutbound0(promise));
+            ctx.execute(() -> closeOutbound0(promise));
         }
         return promise.asFuture();
     }
@@ -1306,7 +1306,7 @@ public class SslHandler extends ByteToMessageDecoder {
 
     private void executeNotifyClosePromise(final ChannelHandlerContext ctx) {
         try {
-            ctx.executor().execute(() -> notifyClosePromise(null));
+            ctx.execute(() -> notifyClosePromise(null));
         } catch (RejectedExecutionException e) {
             notifyClosePromise(e);
         }
@@ -1314,7 +1314,7 @@ public class SslHandler extends ByteToMessageDecoder {
 
     private static void executeChannelRead(final ChannelHandlerContext ctx, final Buffer decodedOut) {
         try {
-            ctx.executor().execute(() -> ctx.fireChannelRead(decodedOut));
+            ctx.execute(() -> ctx.fireChannelRead(decodedOut));
         } catch (RejectedExecutionException e) {
             decodedOut.close();
             throw e;
@@ -1567,7 +1567,6 @@ public class SslHandler extends ByteToMessageDecoder {
         }
 
         void runComplete() {
-            EventExecutor executor = ctx.executor();
             // Jump back on the EventExecutor. We do this even if we are already on the EventLoop to guard against
             // reentrancy issues. Failing to do so could lead to the situation of tryDecode(...) be called and so
             // channelRead(...) while still in the decode loop. In this case channelRead(...) might release the input
@@ -1575,7 +1574,7 @@ public class SslHandler extends ByteToMessageDecoder {
             // decoding.
             //
             // See https://github.com/netty/netty-tcnative/issues/680
-            executor.execute(this::resumeOnEventExecutor);
+            ctx.execute(this::resumeOnEventExecutor);
         }
 
         @Override
@@ -1599,13 +1598,12 @@ public class SslHandler extends ByteToMessageDecoder {
         }
 
         private void handleException(final Throwable cause) {
-            EventExecutor executor = ctx.executor();
-            if (executor.inEventLoop()) {
+            if (ctx.inExecutorThread()) {
                 clearState(STATE_PROCESS_TASK);
                 safeExceptionCaught(cause);
             } else {
                 try {
-                    executor.execute(() -> {
+                    ctx.execute(() -> {
                         clearState(STATE_PROCESS_TASK);
                         safeExceptionCaught(cause);
                     });
@@ -1832,9 +1830,8 @@ public class SslHandler extends ByteToMessageDecoder {
             throw new IllegalStateException();
         }
 
-        EventExecutor executor = ctx.executor();
-        if (!executor.inEventLoop()) {
-            executor.execute(() -> renegotiateOnEventLoop(promise));
+        if (!ctx.inExecutorThread()) {
+            ctx.execute(() -> renegotiateOnEventLoop(promise));
             return promise.asFuture();
         }
 

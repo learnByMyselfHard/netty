@@ -268,4 +268,9 @@ public abstract class EmbeddedChannelHandlerContext implements ChannelHandlerCon
     public final Future<Void> newFailedFuture(Throwable cause) {
         return channel().newFailedFuture(cause);
     }
+
+    @Override
+    public void execute(Runnable task) {
+        eventLoop.execute(task);
+    }
 }

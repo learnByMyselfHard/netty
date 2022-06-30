@@ -217,4 +217,9 @@ public abstract class DelegatingChannelHandlerContext implements ChannelHandlerC
     public Future<Void> newFailedFuture(Throwable cause) {
         return ctx.newFailedFuture(cause);
     }
+
+    @Override
+    public void execute(Runnable task) {
+        ctx.execute(task);
+    }
 }

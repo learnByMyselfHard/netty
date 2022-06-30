@@ -1000,6 +1000,20 @@ final class DefaultChannelHandlerContext implements ChannelHandlerContext, Resou
     }
 
     @Override
+    public void execute(Runnable task) {
+        executor().execute(() -> {
+            // Ensure we update the pending tasks if needed as the Runnable might execute handler methods directly
+            // which we entered from within this context.
+            saveCurrentPendingBytesIfNeeeded();
+            try {
+                task.run();
+            } finally {
+                updatePendingBytesIfNeeded();
+            }
+        });
+    }
+
+    @Override
     public String toHintString() {
         return '\'' + name + "' will handle the message from this point.";
     }

@@ -293,5 +293,10 @@ final class Http2FrameInboundWriter {
         public Future<Void> newFailedFuture(Throwable cause) {
             return channel.newFailedFuture(cause);
         }
+
+        @Override
+        public void execute(Runnable task) {
+            channel.executor().execute(task);
+        }
     }
 }

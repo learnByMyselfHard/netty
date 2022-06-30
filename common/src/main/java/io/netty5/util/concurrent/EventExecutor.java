@@ -25,7 +25,7 @@ import java.util.Iterator;
  * way to access methods.
  *
  */
-public interface EventExecutor extends EventExecutorGroup {
+public interface EventExecutor extends EventExecutorGroup, ThreadAwareExecutor {
 
     /**
      * Returns a reference to itself.
@@ -38,6 +38,11 @@ public interface EventExecutor extends EventExecutorGroup {
     @Override
     default Iterator<EventExecutor> iterator() {
         return Collections.singleton(this).iterator();
+    }
+
+    @Override
+    default boolean inExecutorThread() {
+        return inEventLoop();
     }
 
     /**
