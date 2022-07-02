@@ -205,13 +205,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             final Channel child = (Channel) msg;
-
+            //此时channel还未注册,childHandler会未作channel的初始化器,当注册完成会对其回调,该处理器一般是往pipeline追加一些自定义Handler
             child.pipeline().addLast(childHandler);
-
+            //给channel设置参数和属性
             setChannelOptions(child, childOptions, logger);
             setAttributes(child, childAttrs);
 
             try {
+                //从childGroup获取一个eventLoop然后将channel注册到上面
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

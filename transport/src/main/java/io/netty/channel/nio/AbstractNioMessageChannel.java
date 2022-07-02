@@ -75,7 +75,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             Throwable exception = null;
             try {
                 try {
-                    do {
+                    do {//调用NioServerSocketChannel.accept()获取到NioSocketChannel,并放入readBuf,返回1
                         int localRead = doReadMessages(readBuf);
                         if (localRead == 0) {
                             break;
@@ -84,8 +84,9 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                             closed = true;
                             break;
                         }
-
+                        //调用接收缓冲区分配器增加消息读取数
                         allocHandle.incMessagesRead(localRead);
+                        //判断是否继续读取,对于serverChannel来说这里一直返回false,因为totalBytesRead>0一直不成立
                     } while (continueReading(allocHandle));
                 } catch (Throwable t) {
                     exception = t;
@@ -94,6 +95,8 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 int size = readBuf.size();
                 for (int i = 0; i < size; i ++) {
                     readPending = false;
+                    //通过serverChannel的pipeline传播写事件,入参是NioSocketChannel
+                    //这里写传播起到核心作用的是ServerBootstrapAcceptor处理器,主要是对NioSocketChannel做初始化和注册
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();

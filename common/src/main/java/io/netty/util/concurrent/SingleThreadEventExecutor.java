@@ -276,6 +276,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     }
 
+    /**
+     * 从scheduledTaskQueue根据当前时间获取此时所有到达deadline的任务并放入taskQueue,如果放入失败还会再放回scheduledTaskQueue
+     * @return
+     */
     private boolean fetchFromScheduledTaskQueue() {
         if (scheduledTaskQueue == null || scheduledTaskQueue.isEmpty()) {
             return true;
@@ -457,9 +461,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      */
     protected boolean runAllTasks(long timeoutNanos) {
         fetchFromScheduledTaskQueue();
-        Runnable task = pollTask();
+        Runnable task = pollTask();//从taskQueue获取一个任务
         if (task == null) {
-            afterRunningAllTasks();
+            afterRunningAllTasks();//钩子函数
             return false;
         }
 
@@ -468,26 +472,30 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         long lastExecutionTime;
         for (;;) {
             safeExecute(task);
-
+            //累加本次循环处理的总任务量
             runTasks ++;
 
             // Check timeout every 64 tasks because nanoTime() is relatively expensive.
             // XXX: Hard-coded value - will make it configurable if it is really a problem.
+            //每隔0x3F任务，即每执行完64个任务之后，判断当前时间是否超过本次Reactor任务循环的截止时间了
+            //如果超过，那就break掉，如果没有超过，那就继续执行。
+            //主要是考虑到任务太多的情况下，每次都要调用 nanoTime()是很浪费性能的
             if ((runTasks & 0x3F) == 0) {
                 lastExecutionTime = getCurrentTimeNanos();
                 if (lastExecutionTime >= deadline) {
                     break;
                 }
             }
-
+            //再从taskQueue获取一个任务
             task = pollTask();
             if (task == null) {
                 lastExecutionTime = getCurrentTimeNanos();
                 break;
             }
         }
-
+        //执行tailTasks里面的任务,由SingleThreadEventLoop
         afterRunningAllTasks();
+        //记录当前最后执行时间
         this.lastExecutionTime = lastExecutionTime;
         return true;
     }

@@ -15,13 +15,7 @@
  */
 package io.netty.channel.nio;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelException;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopException;
-import io.netty.channel.EventLoopTaskQueueFactory;
-import io.netty.channel.SelectStrategy;
-import io.netty.channel.SingleThreadEventLoop;
+import io.netty.channel.*;
 import io.netty.util.IntSupplier;
 import io.netty.util.concurrent.RejectedExecutionHandler;
 import io.netty.util.internal.ObjectUtil;
@@ -35,17 +29,12 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectableChannel;
-import java.nio.channels.Selector;
 import java.nio.channels.SelectionKey;
-
+import java.nio.channels.Selector;
 import java.nio.channels.spi.SelectorProvider;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -441,6 +430,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             try {
                 int strategy;
                 try {
+                    //1.hasTasks(): 查看taskQueue 和 tailTasks是否有任务
+                    //2.int strategy: 如果有任务的话会立即调用一次selectNow()并返回调用的结果,否则返回SelectStrategy.SELECT
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
                     case SelectStrategy.CONTINUE:
@@ -450,13 +441,24 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
                     case SelectStrategy.SELECT:
+                        //获取最近一个延时任务的触发时间
                         long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
+                        //说明没有延时任务
                         if (curDeadlineNanos == -1L) {
                             curDeadlineNanos = NONE; // nothing on the calendar
                         }
+                        //唤醒时间由最小延时任务决定,如果没有延时任务则不需要进行唤醒
                         nextWakeupNanos.set(curDeadlineNanos);
                         try {
+                            //如果此时没有任务的话
                             if (!hasTasks()) {
+                                //如果存在延时任务则调用带有超时时间的select(timeout)
+                                //如果不存在延时任务则阻塞调用select,直到有事件触发;
+                                        //1.当其它线程调用该loop执行普通任务的时候会立即调用select.wakeUp
+                                        //2.当其它线程调用该loop执行延时任务,会和nextWakeupNanos比较时间
+                                            //如果小于该值说明要立即执行,即当成普通任务执行立即唤醒select,由于延时任务重写了run,当执行到时候发现没到时间会再放入延时队列
+                                            //如果大于该值会往普通队列放入该延时任务,但不会唤醒select
+                                //如果延时任务时间很短就直接调用selectNow
                                 strategy = select(curDeadlineNanos);
                             }
                         } finally {
@@ -479,6 +481,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 selectCnt++;
                 cancelledKeys = 0;
                 needsToSelectAgain = false;
+                //默认ioRatio是50
                 final int ioRatio = this.ioRatio;
                 boolean ranTasks;
                 if (ioRatio == 100) {
@@ -490,10 +493,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // Ensure we always run tasks.
                         ranTasks = runAllTasks();
                     }
-                } else if (strategy > 0) {
+                } else if (strategy > 0) {//说明有事件发生
                     final long ioStartTime = System.nanoTime();
                     try {
-                        processSelectedKeys();
+                        processSelectedKeys();//处理发生的事件
                     } finally {
                         // Ensure we always run tasks.
                         final long ioTime = System.nanoTime() - ioStartTime;
@@ -651,7 +654,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // null out entry in the array to allow to have it GC'ed once the Channel close
             // See https://github.com/netty/netty/issues/2363
             selectedKeys.keys[i] = null;
-
+            //attachment赋值时机selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this)这里this就是channel
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
@@ -697,7 +700,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         try {
-            int readyOps = k.readyOps();
+            int readyOps = k.readyOps();//查看感兴趣的key
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {

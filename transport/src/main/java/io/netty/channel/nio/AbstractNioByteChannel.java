@@ -134,20 +134,26 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         @Override
         public final void read() {
             final ChannelConfig config = config();
+            //用来判断在半关闭期间是否取消 OP_READ 事件的监听
             if (shouldBreakReadReady(config)) {
                 clearReadPending();
                 return;
             }
             final ChannelPipeline pipeline = pipeline();
+            ////默认是PooledByteBufAllocator,用于字节缓存的分配,赋值见DefaultChannelConfig初始化逻辑
             final ByteBufAllocator allocator = config.getAllocator();
+            //默认是AdaptiveRecvByteBufAllocator,赋值见DefaultChannelConfig初始化逻辑
             final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
+            //初始化allocHandle的变量【maxMessagePerRead【值来源于channel.metadata(),赋值见DefaultChannelConfig初始化逻辑】, totalMessages = totalBytesRead = 0】
             allocHandle.reset(config);
 
-            ByteBuf byteBuf = null;
+            ByteBuf byteBuf = null;//
             boolean close = false;
             try {
                 do {
+                    //通过allocHandle估算字节向allocator申请byteBuf,首次申请是初始化大小这里是2048
                     byteBuf = allocHandle.allocate(allocator);
+                    //doReadBytes会往allocHandle记录attemptedBytesRead,值是byteBuf的容量//lastBytesRead表示实际此次实际从channel读取的字节数
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
                     if (allocHandle.lastBytesRead() <= 0) {
                         // nothing was read. release the buffer.
@@ -160,13 +166,17 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                         }
                         break;
                     }
-
+                    //累加读取数,这里主要是结合maxMessagesPerRead变量对该loop中的channel做一个负载均衡,保证不会处理太长也不会处理太短
                     allocHandle.incMessagesRead(1);
                     readPending = false;
+                    //对这次byteBuf的数据进行写传播
                     pipeline.fireChannelRead(byteBuf);
+                    //有利于垃圾回收
                     byteBuf = null;
+                    //config.isAutoRead() &&(!respectMaybeMoreData【默认false】 || maybeMoreDataSupplier.get()【attemptedBytesRead == lastBytesRead】) && totalMessages < m
                 } while (allocHandle.continueReading());
 
+                //根据当前读取字节数来预估下一次分配多大的ByteBuf容量更加合理些。
                 allocHandle.readComplete();
                 pipeline.fireChannelReadComplete();
 

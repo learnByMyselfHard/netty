@@ -286,6 +286,8 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
         } else {
             final long deadlineNanos = task.deadlineNanos();
             // task will add itself to scheduled task queue when run if not expired
+            //deadlineNanos < nextWakeupNanos.get()
+            //如果新加入的任务时间比之前的延时任务都要紧急,则会立即放入任务队列
             if (beforeScheduledTaskSubmitted(deadlineNanos)) {
                 execute(task);
             } else {
