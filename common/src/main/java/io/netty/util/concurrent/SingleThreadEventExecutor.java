@@ -461,9 +461,11 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      */
     protected boolean runAllTasks(long timeoutNanos) {
         fetchFromScheduledTaskQueue();
-        Runnable task = pollTask();//从taskQueue获取一个任务
+        //从taskQueue获取一个任务
+        Runnable task = pollTask();
         if (task == null) {
-            afterRunningAllTasks();//钩子函数
+            //执行tailTasks里面的任务,由SingleThreadEventLoop实现
+            afterRunningAllTasks();
             return false;
         }
 
@@ -493,7 +495,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 break;
             }
         }
-        //执行tailTasks里面的任务,由SingleThreadEventLoop
+        //执行tailTasks里面的任务,由SingleThreadEventLoop实现
         afterRunningAllTasks();
         //记录当前最后执行时间
         this.lastExecutionTime = lastExecutionTime;
