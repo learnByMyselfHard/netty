@@ -375,6 +375,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         boolean ranAtLeastOne = false;
 
         do {
+            //从scheduledTaskQueue获取此刻可以执行的延时任务并入taskQueue中
             fetchedAll = fetchFromScheduledTaskQueue();
             if (runAllTasksFrom(taskQueue)) {
                 ranAtLeastOne = true;
@@ -460,6 +461,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * the tasks in the task queue and returns if it ran longer than {@code timeoutNanos}.
      */
     protected boolean runAllTasks(long timeoutNanos) {
+        //从scheduledTaskQueue获取此刻可以执行的延时任务并入taskQueue中
         fetchFromScheduledTaskQueue();
         //从taskQueue获取一个任务
         Runnable task = pollTask();

@@ -589,6 +589,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void processSelectedKeys() {
         if (selectedKeys != null) {
+            //selectedKeys 是优化后的数组,具体见NioEventLoop
             processSelectedKeysOptimized();
         } else {
             processSelectedKeysPlain(selector.selectedKeys());
@@ -654,6 +655,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private void processSelectedKeysOptimized() {
+        //从这里可知,使用selectedKeys并没有用到迭代器,remove,contain这些方法,因此才可以使用数组优化
+        //selector会自行维护selectedKeys的值变化,这里直接取就行
         for (int i = 0; i < selectedKeys.size; ++i) {
             final SelectionKey k = selectedKeys.keys[i];
             // null out entry in the array to allow to have it GC'ed once the Channel close
