@@ -125,6 +125,7 @@ public class FastThreadLocal<V> {
     private final int index;
 
     public FastThreadLocal() {
+        //获取自增变量,全局唯一,因此不会冲突
         index = InternalThreadLocalMap.nextVariableIndex();
     }
 
@@ -133,12 +134,16 @@ public class FastThreadLocal<V> {
      */
     @SuppressWarnings("unchecked")
     public final V get() {
+        //如果当前线程是FastThreadLocalThread则从该线程获取InternalThreadLocalMap,否则从原生threadLocal获取InternalThreadLocalMap
         InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.get();
+        //从初始化的index获取变量,只需要查找一次,不存在hash冲突,因此性能很快
         Object v = threadLocalMap.indexedVariable(index);
+        //说明该索引已经存在直接返回
         if (v != InternalThreadLocalMap.UNSET) {
             return (V) v;
         }
-
+        new ThreadLocal<>();
+        //初始化
         return initialize(threadLocalMap);
     }
 
@@ -174,12 +179,14 @@ public class FastThreadLocal<V> {
     private V initialize(InternalThreadLocalMap threadLocalMap) {
         V v = null;
         try {
+            //回调重写
             v = initialValue();
         } catch (Exception e) {
             PlatformDependent.throwException(e);
         }
-
+        //往指定index设置值
         threadLocalMap.setIndexedVariable(index, v);
+        //将当前实力放入threadLocalMap索引为0的set里面
         addToVariablesToRemove(threadLocalMap, this);
         return v;
     }
