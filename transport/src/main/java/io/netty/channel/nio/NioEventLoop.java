@@ -508,7 +508,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 } else {
                     ranTasks = runAllTasks(0); // This will run the minimum number of tasks
                 }
-
+                //如果有任务[任务的添加也会唤醒selector]或者有事件发生则重置selectCnt
                 if (ranTasks || strategy > 0) {
                     if (selectCnt > MIN_PREMATURE_SELECTOR_RETURNS && logger.isDebugEnabled()) {
                         logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.",
