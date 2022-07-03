@@ -15,8 +15,6 @@
  */
 package io.netty.handler.codec.http;
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,6 +27,8 @@ import io.netty.util.ByteProcessor;
 import io.netty.util.internal.AppendableCharSequence;
 
 import java.util.List;
+
+import static io.netty.util.internal.ObjectUtil.checkPositive;
 
 /**
  * Decodes {@link ByteBuf}s into {@link HttpMessage}s and
@@ -259,6 +259,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         case SKIP_CONTROL_CHARS:
             // Fall-through
         case READ_INITIAL: try {
+            ////获取一个个char,如果是合法的会拼接到一起从而得到请求行
             AppendableCharSequence line = lineParser.parse(buffer);
             if (line == null) {
                 return;

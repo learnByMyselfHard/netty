@@ -271,11 +271,15 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf) {
             selfFiredChannelRead = true;
+            ////创建一个CodecOutputList类型的对象池，并从中获取一个,用来缓存接收到的msg
             CodecOutputList out = CodecOutputList.newInstance();
             try {
+                ////首次的话cumulation即msg不做其它处理
                 first = cumulation == null;
+                ////cumulator是数据累积器,有2种实现,一种是复制[MERGE_CUMULATOR,默认]另外一种是组合[COMPOSITE_CUMULATOR]
                 cumulation = cumulator.cumulate(ctx.alloc(),
                         first ? Unpooled.EMPTY_BUFFER : cumulation, (ByteBuf) msg);
+                //解码
                 callDecode(ctx, cumulation, out);
             } catch (DecoderException e) {
                 throw e;
@@ -429,6 +433,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
     protected void callDecode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         try {
             while (in.isReadable()) {
+                //out是编码消息暂存区
                 final int outSize = out.size();
 
                 if (outSize > 0) {
@@ -446,6 +451,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 }
 
                 int oldInputLength = in.readableBytes();
+                //解码
                 decodeRemovalReentryProtection(ctx, in, out);
 
                 // Check if this handler was removed before continuing the loop.
@@ -505,8 +511,10 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      */
     final void decodeRemovalReentryProtection(ChannelHandlerContext ctx, ByteBuf in, List<Object> out)
             throws Exception {
+        //更新解码状态为调用子类解码
         decodeState = STATE_CALLING_CHILD_DECODE;
         try {
+            //调用子类解码实现
             decode(ctx, in, out);
         } finally {
             boolean removePending = decodeState == STATE_HANDLER_REMOVED_PENDING;
