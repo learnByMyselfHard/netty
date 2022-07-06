@@ -137,6 +137,7 @@ public final class HttpServerCodec extends CombinedChannelDuplexHandler<HttpRequ
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception {
             int oldSize = out.size();
+            //HttpObjectDecoder
             super.decode(ctx, buffer, out);
             int size = out.size();
             for (int i = oldSize; i < size; i++) {
