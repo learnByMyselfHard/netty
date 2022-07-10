@@ -81,11 +81,12 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
         //nSubpages表示内存规格不足一页的数量
         numSmallSubpagePools = nSubpages;
-        smallSubpagePools = newSubpagePoolArray(numSmallSubpagePools);//分配管理small内存的池子
+        //分配管理small内存的池子
+        smallSubpagePools = newSubpagePoolArray(numSmallSubpagePools);
         for (int i = 0; i < smallSubpagePools.length; i ++) {
             smallSubpagePools[i] = newSubpagePoolHead();
         }
-        //分配管理normal内存的PoolChunk
+        //分配管理normal内存的PoolChunkList
         q100 = new PoolChunkList<T>(this, null, 100, Integer.MAX_VALUE, chunkSize);
         q075 = new PoolChunkList<T>(this, q100, 75, 100, chunkSize);
         q050 = new PoolChunkList<T>(this, q075, 50, 100, chunkSize);
@@ -137,7 +138,7 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
             tcacheAllocateSmall(cache, buf, reqCapacity, sizeIdx);
         } else if (sizeIdx < nSizes) {//如果索引没有大于chunk的大小,则分配normal内存
             tcacheAllocateNormal(cache, buf, reqCapacity, sizeIdx);
-        } else {////如果索引小于subPage最大索引id则分配small内存
+        } else {//huge内存分配
             int normCapacity = directMemoryCacheAlignment > 0
                     ? normalizeSize(reqCapacity) : reqCapacity;
             // Huge allocations are never served via the cache so just call allocateHuge
@@ -160,21 +161,21 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
         //获取对应的PoolSubpage
         final PoolSubpage<T> head = smallSubpagePools[sizeIdx];
         final boolean needsNormalAllocation;
-        synchronized (head) {
+        synchronized (head) {//加锁分配,线程安全
             final PoolSubpage<T> s = head.next;
-            //如果subPage此时没有分配内存则先进行一次normal分配
+            //该PoolSubpage的head.next != head,说明该规格分配过内存,需要进行一次normal分配
             needsNormalAllocation = s == head;
             if (!needsNormalAllocation) {
                 assert s.doNotDestroy && s.elemSize == sizeIdx2size(sizeIdx) : "doNotDestroy=" +
                         s.doNotDestroy + ", elemSize=" + s.elemSize + ", sizeIdx=" + sizeIdx;
                 long handle = s.allocate();
-                assert handle >= 0;
+                assert handle >= 0;//计算偏移量,初始化buf
                 s.chunk.initBufWithSubpage(buf, null, handle, reqCapacity, cache);
             }
         }
 
         if (needsNormalAllocation) {
-            synchronized (this) {
+            synchronized (this) {//加锁分配,线程安全
                 allocateNormal(buf, reqCapacity, sizeIdx, cache);
             }
         }
@@ -196,6 +197,8 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int sizeIdx, PoolThreadCache threadCache) {
+        //这是一种折中和取舍的方案，我们既希望内存分配的成功率高一些，又希望整体的内存利用率高一些，保证相对空闲的内存能够尽可能地被回收释放。
+        //因此，先从q050的PoolChunkList进行内存分配，这样可以让内存的利用率在一个较高的水平，又不会让内存分配的成功率太低。如果q050内存分配失败了，则更倾向于优先保证内存分配的成功率，于是按照q025—>q000—>qInit的顺序进行内存分配，把q075放在最后，因为这个PoolChunkList的内存分配成功率太低了。
         if (q050.allocate(buf, reqCapacity, sizeIdx, threadCache) ||
             q025.allocate(buf, reqCapacity, sizeIdx, threadCache) ||
             q000.allocate(buf, reqCapacity, sizeIdx, threadCache) ||
@@ -261,6 +264,7 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
                         throw new Error();
                 }
             }
+            //如果chunk移动失败,说明该chunk使用率未0导致找不到合适的chunklist,此时返回false会对该chunk进行销毁
             destroyChunk = !chunk.parent.free(chunk, handle, normCapacity, nioBuffer);
         }
         if (destroyChunk) {

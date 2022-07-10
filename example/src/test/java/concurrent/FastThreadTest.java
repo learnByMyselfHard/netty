@@ -1,4 +1,4 @@
-package io.util.concurrent;
+package concurrent;
 
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.FastThreadLocalThread;

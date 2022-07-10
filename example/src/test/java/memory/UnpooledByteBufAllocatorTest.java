@@ -1,4 +1,4 @@
-package io.util.memory;
+package memory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
