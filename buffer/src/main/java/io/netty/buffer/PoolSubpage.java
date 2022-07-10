@@ -91,6 +91,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         assert (bitmap[q] >>> r & 1) == 0;
         bitmap[q] |= 1L << r;
 
+        //当前subPage已经没有可用空间给下一次同规格分配时,就会从池子中移出,即smallSubpagePools的head.next会置为null
         if (-- numAvail == 0) {
             removeFromPool();
         }

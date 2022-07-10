@@ -11,7 +11,7 @@ public class pooledByteBufAllocatorTest {
     public void small(){
         //small内存管理
         ByteBuf buffer = pooledByteBufAllocator.buffer(10);
-
+        buffer = pooledByteBufAllocator.buffer(10);
         buffer.writeInt(11111);
         System.out.println(buffer.readInt());
 
@@ -23,9 +23,15 @@ public class pooledByteBufAllocatorTest {
 
     @Test
     public void normal(){
-        //验证normal分配
-        ByteBuf buffer = pooledByteBufAllocator.buffer(31);
+        //大于28kb分配normal
+        ByteBuf buffer =pooledByteBufAllocator.buffer(1024*28+1);
+         buffer.release();
+    }
 
+    @Test
+    public void huge(){
+        ByteBuf buffer = pooledByteBufAllocator.buffer(1024*1024*16+1);
+        System.out.println();
     }
 
     @Test

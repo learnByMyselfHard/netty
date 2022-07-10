@@ -310,7 +310,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             }
             assert isSubpage(handle);
         } else {
-            // normal 大内存分配
+            // normal
             // runSize must be multiple of pageSize
             int runSize = arena.sizeIdx2size(sizeIdx);
             handle = allocateRun(runSize);
@@ -325,7 +325,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         initBuf(buf, nioBuffer, handle, reqCapacity, cache);
         return true;
     }
-
+    //分配若干个 page
     private long allocateRun(int runSize) {
         int pages = runSize >> pageShifts;
         int pageIdx = arena.pages2pageIdx(pages);
