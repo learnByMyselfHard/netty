@@ -169,20 +169,32 @@ abstract class SizeClasses implements SizeClassesMetric {
                 lookupMaxSize = sizeOf(sz, directMemoryCacheAlignment);
             }
         }
+        //默认值38,subPage规格的最大索引
         this.smallMaxSizeIdx = smallMaxSizeIdx;
+        //默认值4096
         this.lookupMaxSize = lookupMaxSize;
+        //默认值32   页的整数倍规格数量
         this.nPSizes = nPSizes;
+        //默认值39 subPage规格的数量
         this.nSubpages = nSubpages;
+        //默认值68
         this.nSizes = nSizes;
 
+        //默认值8192
         this.pageSize = pageSize;
+        //默认值13
         this.pageShifts = pageShifts;
+        //默认值4194304
         this.chunkSize = chunkSize;
         this.directMemoryCacheAlignment = directMemoryCacheAlignment;
 
-        //generate lookup tables
+        //generate lookup tables 构建查找表
+        //2 表示映射
+        //这个表格存的则是索引和对应的size的对应表格（其实就是上面表格中size那一列的数据）,因为这chunk只有4M,所以这里的size只取到68
         sizeIdx2sizeTab = newIdx2SizeTab(sizeClasses, nSizes, directMemoryCacheAlignment);
+        //这个表格存储的是上面的表格中isMultiPages是1的对应的size的数据（主要用于监控的数据）
         pageIdx2sizeTab = newPageIdx2sizeTab(sizeClasses, nSizes, nPSizes, directMemoryCacheAlignment);
+        //用来较小size 对应 sizeIdx 的值，这样我们再查找较小值对应的内存规格时，可以直接通过这个数组得到。
         size2idxTab = newSize2idxTab(lookupMaxSize, sizeClasses);
     }
 

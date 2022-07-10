@@ -303,14 +303,14 @@ final class PoolChunk<T> implements PoolChunkMetric {
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int sizeIdx, PoolThreadCache cache) {
         final long handle;
         if (sizeIdx <= arena.smallMaxSizeIdx) {
-            // small
+            // small  小内存分配
             handle = allocateSubpage(sizeIdx);
             if (handle < 0) {
                 return false;
             }
             assert isSubpage(handle);
         } else {
-            // normal
+            // normal 大内存分配
             // runSize must be multiple of pageSize
             int runSize = arena.sizeIdx2size(sizeIdx);
             handle = allocateRun(runSize);
@@ -321,6 +321,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         }
 
         ByteBuffer nioBuffer = cachedNioBuffers != null? cachedNioBuffers.pollLast() : null;
+        //因为复用的原因,所以每次都得初始化以下Buf
         initBuf(buf, nioBuffer, handle, reqCapacity, cache);
         return true;
     }
@@ -428,9 +429,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private long allocateSubpage(int sizeIdx) {
         // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
         // This is need as we may add it back and so alter the linked-list structure.
+        //根据sizeIdx从area里面找到PoolSubpage
         PoolSubpage<T> head = arena.findSubpagePoolHead(sizeIdx);
         synchronized (head) {
             //allocate a new run
+            //这里是一个页的大小即8kb
             int runSize = calculateRunSize(sizeIdx);
             //runSize must be multiples of pageSize
             long runHandle = allocateRun(runSize);
@@ -441,11 +444,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
             int runOffset = runOffset(runHandle);
             assert subpages[runOffset] == null;
             int elemSize = arena.sizeIdx2size(sizeIdx);
-
+            //一个page根据elemSize平均分成多块
             PoolSubpage<T> subpage = new PoolSubpage<T>(head, this, pageShifts, runOffset,
                                runSize(pageShifts, runHandle), elemSize);
 
             subpages[runOffset] = subpage;
+            //调用subpage分配内存,内部是根据bitmap来维护使用状态的
             return subpage.allocate();
         }
     }

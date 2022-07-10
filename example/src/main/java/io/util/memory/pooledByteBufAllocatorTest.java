@@ -9,9 +9,16 @@ public class pooledByteBufAllocatorTest {
 
         ByteBuf buffer = pooledByteBufAllocator.buffer(10);
 
-        buffer.writeInt(1);
+        buffer.writeInt(11111);
         System.out.println(buffer.readInt());
 
         buffer.release();
+
+        //内存数据没重置..
+        buffer = pooledByteBufAllocator.buffer(10);
+
+        buffer.writerIndex(4);
+        System.out.println(buffer.readInt());
+
     }
 }
