@@ -246,6 +246,7 @@ public class CombinedChannelDuplexHandler<I extends ChannelInboundHandler, O ext
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        //ctx是在handlerAdded时机赋予的
         assert ctx == inboundCtx.ctx;
         if (!inboundCtx.removed) {
             inboundHandler.channelRead(inboundCtx, msg);

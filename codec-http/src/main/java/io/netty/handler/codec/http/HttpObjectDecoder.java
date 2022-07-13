@@ -259,7 +259,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         case SKIP_CONTROL_CHARS:
             // Fall-through
         case READ_INITIAL: try {
-            ////获取一个个char,如果是合法的会拼接到一起从而得到请求行
+            //获取一个个char,如果是合法的会拼接到一起直到读取到换行符,此时读取的内容即为请求行
             AppendableCharSequence line = lineParser.parse(buffer);
             if (line == null) {
                 return;
@@ -272,6 +272,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
             }
 
             message = createMessage(initialLine);
+            //进入请求头解析阶段
             currentState = State.READ_HEADER;
             // fall-through
         } catch (Exception e) {
@@ -279,6 +280,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
             return;
         }
         case READ_HEADER: try {
+            //获取一个个char,如果是合法的会拼接到一起直到读取到换行符,此时读取的内容即为一个请求头。重复这个动作直到将全部请求头解析完成
             State nextState = readHeaders(buffer);
             if (nextState == null) {
                 return;
@@ -937,14 +939,19 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         }
 
         public AppendableCharSequence parse(ByteBuf buffer) {
+            //此次读取的字符总数
             final int oldSize = size;
+            //seq重置
             seq.reset();
+            //不断的从buffer读取一个字符并将字符append到seq种,直到构成一个完整的请求行或者请求头
             int i = buffer.forEachByte(this);
             if (i == -1) {
                 size = oldSize;
                 return null;
             }
+            //更新可读区域,目的是让已经解析的请求行或者请求头不可读
             buffer.readerIndex(i + 1);
+            //返回此次解析完的请求头或者请求行部分
             return seq;
         }
 
