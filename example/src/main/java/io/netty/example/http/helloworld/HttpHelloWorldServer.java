@@ -19,6 +19,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -55,7 +56,8 @@ public final class HttpHelloWorldServer {
             b.group(bossGroup, workerGroup)
              .channel(NioServerSocketChannel.class)
              .handler(new LoggingHandler(LogLevel.INFO))
-             .childHandler(new HttpHelloWorldServerInitializer(sslCtx));
+             .childHandler(new HttpHelloWorldServerInitializer(sslCtx))
+              .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,new WriteBufferWaterMark(32 * 1024,64 * 1024));
 
             Channel ch = b.bind(PORT).sync().channel();
 

@@ -1302,7 +1302,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
                 return start;
             }
         }
-
+        //读到此次Buf的末尾还没有发现结束符导致构不成一个完整对象此时会返回-1
         return -1;
     }
 

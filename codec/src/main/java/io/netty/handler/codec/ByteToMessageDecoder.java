@@ -82,10 +82,10 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
         public ByteBuf cumulate(ByteBufAllocator alloc, ByteBuf cumulation, ByteBuf in) {
             if (!cumulation.isReadable() && in.isContiguous()) {
                 // If cumulation is empty and input buffer is contiguous, use it directly
-                //如果cumulation是空Buf且inBuf是连续的则直接使用它。否则的化需要倒腾一下数据
+                //如果累积缓存不可读且输入数据缓存是连续的则直接使用输入缓冲,并释放累积缓冲区
                 cumulation.release();
                 return in;
-            }
+            }//合并inBuffer的数据到cumulation并释放inBuffer
             try {
                 final int required = in.readableBytes();
                 if (required > cumulation.maxWritableBytes() ||
@@ -275,7 +275,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
             //创建一个CodecOutputList类型的对象池，并从中获取一个,用来缓存接收到的msg
             CodecOutputList out = CodecOutputList.newInstance();
             try {
-                //cumulation是ByteBuf这里指msg,为空说明是首次读取,此时会使用即不能读又不能写的空buf,如果不是就会继续那之前的buf继续往里面读取数据
+                //cumulation是ByteBuf这里指msg,为空说明是首次读取,此时会使用即不能读又不能写的空buf,不为空即为最近首个解析不了的请求ByteBuf
                 first = cumulation == null;
                 //cumulator是数据累积器,有2种实现,一种是复制[MERGE_CUMULATOR,默认]另外一种是组合[COMPOSITE_CUMULATOR]
                 cumulation = cumulator.cumulate(ctx.alloc(),
@@ -434,7 +434,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
     protected void callDecode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         try {
             while (in.isReadable()) {
-                //out是编码消息暂存区
+                //out是编码消息暂存区,如果有成功编码的消息则会对消息进行写传播
                 final int outSize = out.size();
 
                 if (outSize > 0) {
@@ -452,7 +452,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 }
 
                 int oldInputLength = in.readableBytes();
-                //解码
+                //解码字节组装成消息放到out里面
                 decodeRemovalReentryProtection(ctx, in, out);
 
                 // Check if this handler was removed before continuing the loop.

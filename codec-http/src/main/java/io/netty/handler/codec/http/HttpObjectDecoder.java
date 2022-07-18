@@ -254,7 +254,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         if (resetRequested) {
             resetNow();
         }
-
+        //根据当前状态进行处理,一个消息的解码可能需要多次调用decode方法,因此需要记录上一次进行的状态,
         switch (currentState) {
         case SKIP_CONTROL_CHARS:
             // Fall-through
@@ -270,7 +270,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
                 currentState = State.SKIP_CONTROL_CHARS;
                 return;
             }
-
+            //根据请求行初始化一条消息
             message = createMessage(initialLine);
             //进入请求头解析阶段
             currentState = State.READ_HEADER;
@@ -630,6 +630,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         if (line == null) {
             return null;
         }
+        //循环解析请求头
         if (line.length() > 0) {
             do {
                 char firstChar = line.charAtUnsafe(0);
@@ -647,10 +648,11 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
                 }
 
                 line = headerParser.parse(buffer);
+                //报文数据不够解析不了
                 if (line == null) {
                     return null;
                 }
-            } while (line.length() > 0);
+            } while (line.length() > 0);//line.length()为0说明解析到一个空行
         }
 
         // Add the last header.
@@ -665,7 +667,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
         // Done parsing initial line and headers. Set decoder result.
         HttpMessageDecoderResult decoderResult = new HttpMessageDecoderResult(lineParser.size, headerParser.size);
         message.setDecoderResult(decoderResult);
-
+        //获取请求体长度
         List<String> contentLengthFields = headers.getAll(HttpHeaderNames.CONTENT_LENGTH);
         if (!contentLengthFields.isEmpty()) {
             HttpVersion version = message.protocolVersion();
@@ -943,9 +945,9 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
             final int oldSize = size;
             //seq重置
             seq.reset();
-            //不断的从buffer读取一个字符并将字符append到seq种,直到构成一个完整的请求行或者请求头
+            //不断的从buffer读取一个字符并将字符append到seq中,直到构成一个完整的请求行或者请求头
             int i = buffer.forEachByte(this);
-            if (i == -1) {
+            if (i == -1) {//报文接收不全,直接返回null
                 size = oldSize;
                 return null;
             }
@@ -971,7 +973,7 @@ public abstract class HttpObjectDecoder extends ByteToMessageDecoder {
                 }
                 return false;
             }
-
+            //size追加
             increaseCount();
 
             seq.append(nextByte);

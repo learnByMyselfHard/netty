@@ -183,7 +183,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 if (close) {
                     closeOnRead(pipeline);
                 }
-            } catch (Throwable t) {
+            } catch (Throwable t) {//远程关闭socket会触发读事件,会导致服务端读取的时候抛出异常
                 handleReadException(pipeline, byteBuf, t, close, allocHandle);
             } finally {
                 // Check if there is a readPending which was not processed yet.

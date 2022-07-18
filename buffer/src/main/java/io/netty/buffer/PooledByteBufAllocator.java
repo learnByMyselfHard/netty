@@ -302,6 +302,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
         //默认13 = 2^13
         int pageShifts = validateAndCalculatePageShifts(pageSize, directMemoryCacheAlignment);
+        //初始化arena,在获取threadCache的时候会选择被持有线程数最少的arena进行绑定,减少并发竞争
         //nHeapArena默认16
         if (nHeapArena > 0) {
             //初始化heapArenas数组

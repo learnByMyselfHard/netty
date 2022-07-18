@@ -890,7 +890,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             if (outboundBuffer == null) {
                 return;
             }
-
+            //将unflush链表的entry迁移到flush链表
             outboundBuffer.addFlush();
             flush0();
         }
@@ -928,6 +928,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             try {
+                //将netty输出缓存区outboundBuffer的字节写出到channel中
                 doWrite(outboundBuffer);
             } catch (Throwable t) {
                 handleWriteError(t);

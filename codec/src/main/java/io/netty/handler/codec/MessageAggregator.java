@@ -205,7 +205,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     @Override
     protected void decode(final ChannelHandlerContext ctx, I msg, List<Object> out) throws Exception {
         assert aggregating;
-
+        //该msg是一个消息的开始。http中指请求行和请求头
         if (isStartMessage(msg)) {
             handlingOversizedMessage = false;
             if (currentMessage != null) {
@@ -270,8 +270,11 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             if (m instanceof ByteBufHolder) {
                 appendPartialContent(content, ((ByteBufHolder) m).content());
             }
+            //聚合消息赋值
             currentMessage = beginAggregation(m, content);
-        } else if (isContentMessage(msg)) {
+        }
+        //该消息是消息的内容
+        else if (isContentMessage(msg)) {
             if (currentMessage == null) {
                 // it is possible that a TooLongFrameException was already thrown but we can still discard data
                 // until the begging of the next request/response.
@@ -313,7 +316,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             } else {
                 last = isLastContentMessage(m);
             }
-
+            //如果是消息内容的最后一部分就代表聚合完毕
             if (last) {
                 finishAggregation0(currentMessage);
 

@@ -98,6 +98,7 @@ public abstract class MessageToMessageDecoder<I> extends ChannelInboundHandlerAd
             throw new DecoderException(e);
         } finally {
             try {
+                //out里面装的是一个复合后的消息包含完整的消息头和消息体
                 int size = out.size();
                 for (int i = 0; i < size; i++) {
                     ctx.fireChannelRead(out.getUnsafe(i));
