@@ -142,7 +142,6 @@ public class FastThreadLocal<V> {
         if (v != InternalThreadLocalMap.UNSET) {
             return (V) v;
         }
-        new ThreadLocal<>();
         //初始化
         return initialize(threadLocalMap);
     }

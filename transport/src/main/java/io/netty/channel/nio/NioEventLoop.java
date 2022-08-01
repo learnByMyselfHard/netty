@@ -162,11 +162,14 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private SelectorTuple openSelector() {
         final Selector unwrappedSelector;
         try {
+            //创建java原生selector
+            ///windos环境下JDK实现的是WindowsSelectorImpl
+            //Linux环境下JDK实现的是EPollSelectorImpl
             unwrappedSelector = provider.openSelector();
         } catch (IOException e) {
             throw new ChannelException("failed to open a new selector", e);
         }
-
+        //是否需要优化，默认需要DISABLE_KEYSET_OPTIMIZATION=false
         if (DISABLE_KEY_SET_OPTIMIZATION) {
             return new SelectorTuple(unwrappedSelector);
         }
@@ -184,7 +187,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 }
             }
         });
-
+        //如果返回maybeSelectorImplClass不是一个class对象，或者unwrappedSelector.getClass()不是maybeSelectorImplClass的子类,则不对selector进行优化
         if (!(maybeSelectorImplClass instanceof Class) ||
             // ensure the current selector implementation is what we can instrument.
             !((Class<?>) maybeSelectorImplClass).isAssignableFrom(unwrappedSelector.getClass())) {
@@ -194,14 +197,17 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
             return new SelectorTuple(unwrappedSelector);
         }
-
+        //selector的class对象
         final Class<?> selectorImplClass = (Class<?>) maybeSelectorImplClass;
+        //内部数组结构实现set接口
         final SelectedSelectionKeySet selectedKeySet = new SelectedSelectionKeySet();
 
         Object maybeException = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
                 try {
+                    //selectedKeys：触发事件的集合,仅内部使用
+                    //publicSelectedKeys：基于selectedKeys的包装类,暴露给外部使用,不允许添加只能删除
                     Field selectedKeysField = selectorImplClass.getDeclaredField("selectedKeys");
                     Field publicSelectedKeysField = selectorImplClass.getDeclaredField("publicSelectedKeys");
 
@@ -230,7 +236,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     if (cause != null) {
                         return cause;
                     }
-
+                    //将原生select的selectedKeysField和publicSelectedKeysField替换成SelectedSelectionKeySet实现
+                    //SelectedSelectionKeySet虽然实现了set接口但是底层是数组,无需hash运算等其它消耗,提升了性能
+                    //SelectedSelectionKeySet特性：netty每次select后都会重置一下selectedKeySet且selectedKeySet【类似nio案例中每次select后都要remove一下,只不过netty是全部处理完后一次性全部reset】,且除了add和reset其它操作都不允许,比如remove等等
                     selectedKeysField.set(unwrappedSelector, selectedKeySet);
                     publicSelectedKeysField.set(unwrappedSelector, selectedKeySet);
                     return null;
@@ -248,8 +256,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             logger.trace("failed to instrument a special java.util.Set into: {}", unwrappedSelector, e);
             return new SelectorTuple(unwrappedSelector);
         }
+        //保留selectedKeys,类型为SelectedSelectionKeySet
         selectedKeys = selectedKeySet;
         logger.trace("instrumented a special java.util.Set into: {}", unwrappedSelector);
+        //SelectedSelectionKeySetSelector重写了select(),selectNow()..方法,每次调用前都会清空优化后的selectedKeySet,然后再委派给原生select调用原方法
         return new SelectorTuple(unwrappedSelector,
                                  new SelectedSelectionKeySetSelector(unwrappedSelector, selectedKeySet));
     }
