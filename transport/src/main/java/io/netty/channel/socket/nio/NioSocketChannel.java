@@ -385,10 +385,12 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
         SocketChannel ch = javaChannel();
+        //此次写出循环次数上限,默认16
         int writeSpinCount = config().getWriteSpinCount();
         do {
             if (in.isEmpty()) {
                 // All written so clear OP_WRITE
+                //如果写出缓冲区是空的那么就要取消写事件,防止因为写出缓存区空导致写事件不断触发
                 clearOpWrite();
                 // Directly return here so incompleteWrite(...) is not called.
                 return;
@@ -403,7 +405,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
             // See https://github.com/netty/netty/issues/2761
             switch (nioBufferCnt) {
                 case 0:
-                    // We have something else beside ByteBuffers to write so fallback to normal writes.
+                    // 非ByteBuffer 数据，交给父类实现
                     writeSpinCount -= doWrite0(in);
                     break;
                 case 1: {
@@ -414,11 +416,14 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
                     int attemptedBytes = buffer.remaining();
                     final int localWrittenBytes = ch.write(buffer);
                     if (localWrittenBytes <= 0) {
+                        //如果写出字节小于等于0说明写出缓存区满了,此时直接退出并注册写事件,当写出缓冲区有空间了会自动触发写事件
                         incompleteWrite(true);
                         return;
                     }
                     adjustMaxBytesPerGatheringWrite(attemptedBytes, localWrittenBytes, maxBytesPerGatheringWrite);
+                    //移除缓冲区的entry,并减去缓冲区的总字节数,如果低于低水位线会通过pipeline传播fireChannelWritabilityChanged
                     in.removeBytes(localWrittenBytes);
+                    //循环次数自减
                     --writeSpinCount;
                     break;
                 }
@@ -441,7 +446,11 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
                 }
             }
         } while (writeSpinCount > 0);
-
+        /**
+         * 未全发送完；
+         * 若 writeSpinCount < 0 说明Socket缓冲区已经满了，未发送成功。
+         * 若 writeSpinCount = 0 说明Netty数据量太大了16次循环未写完
+         */
         incompleteWrite(writeSpinCount < 0);
     }
 

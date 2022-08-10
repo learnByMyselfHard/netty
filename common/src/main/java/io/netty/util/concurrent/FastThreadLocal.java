@@ -185,7 +185,7 @@ public class FastThreadLocal<V> {
         }
         //往指定index设置值
         threadLocalMap.setIndexedVariable(index, v);
-        //将当前实力放入threadLocalMap索引为0的set里面
+        //将当前实例放入threadLocalMap索引为0的set里面
         addToVariablesToRemove(threadLocalMap, this);
         return v;
     }

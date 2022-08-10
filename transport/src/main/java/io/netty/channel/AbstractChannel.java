@@ -865,6 +865,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             int size;
             try {
+                //只支持ByteBuf和FileRegion两种消息类型
                 msg = filterOutboundMessage(msg);
                 size = pipeline.estimatorHandle().size(msg);
                 if (size < 0) {
@@ -878,7 +879,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 }
                 return;
             }
-
+            //1.将消息放入缓冲区的unflush链表
+            //2.累加unflush字节数,如果达到低水位线会通过pipeline回调fireChannelWritabilityChanged
             outboundBuffer.addMessage(msg, size, promise);
         }
 
