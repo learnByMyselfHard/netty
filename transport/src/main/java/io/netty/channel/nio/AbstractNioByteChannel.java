@@ -155,6 +155,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                     byteBuf = allocHandle.allocate(allocator);
                     //doReadBytes会往allocHandle记录attemptedBytesRead,值是byteBuf的容量//lastBytesRead表示实际此次实际从channel读取的字节数
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
+                    //-1说明客户端发起四次挥手
                     if (allocHandle.lastBytesRead() <= 0) {
                         // nothing was read. release the buffer.
                         byteBuf.release();
@@ -179,7 +180,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 //根据当前读取字节数来预估下一次分配多大的ByteBuf容量更加合理些。
                 allocHandle.readComplete();
                 pipeline.fireChannelReadComplete();
-
+                //关闭channel
                 if (close) {
                     closeOnRead(pipeline);
                 }
