@@ -673,6 +673,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // See https://github.com/netty/netty/issues/2363
             selectedKeys.keys[i] = null;
             //attachment赋值时机selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this)这里this就是channel
+            //selectedKeys的channel是原生的而AbstractNioChannel包装了原生的channel
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
