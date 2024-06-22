@@ -23,7 +23,9 @@ public class pooledByteBufAllocatorTest {
         for (int i = 0; i < 8; i++) {
             buffer.writeByte(1);
         }
-        //使用完ByteBuf但没realease
+        buffer.retain(1);
+        //使用完ByteBuf但没realease,realease会调用Reference的clear方法使其不会入队
+        buffer.release(2);
         buffer = null;
         //GC以后触发ResourceLeakDetector.DefaultResourceLeak的回收
         System.gc();
