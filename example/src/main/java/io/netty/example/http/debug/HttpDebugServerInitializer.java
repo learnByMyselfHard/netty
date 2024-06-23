@@ -23,8 +23,12 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerExpectContinueHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.NettyRuntime;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HttpDebugServerInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -36,10 +40,20 @@ public class HttpDebugServerInitializer extends ChannelInitializer<SocketChannel
 
     @Override
     public void initChannel(SocketChannel ch) {
+        DefaultEventExecutorGroup executorGroup = new DefaultEventExecutorGroup(
+                NettyRuntime.availableProcessors(),
+                new ThreadFactory() {
+                    private AtomicInteger threadIndex = new AtomicInteger(0);
+
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        return new Thread(r, "business_" + this.threadIndex.incrementAndGet());
+                    }
+                });
+
         final int readIdleTimeOut = 5, writeIdleTimeOut = 5, allIdleTimeOut = 10;
         ChannelPipeline p = ch.pipeline();
-        //个人追加
-        p.addLast(new IdleStateHandler(readIdleTimeOut, writeIdleTimeOut, allIdleTimeOut, TimeUnit.SECONDS));
+        p.addLast(executorGroup, new IdleStateHandler(readIdleTimeOut, writeIdleTimeOut, allIdleTimeOut, TimeUnit.SECONDS));
         if (sslCtx != null) {
             p.addLast(sslCtx.newHandler(ch.alloc()));
         }
@@ -47,6 +61,6 @@ public class HttpDebugServerInitializer extends ChannelInitializer<SocketChannel
         //个人追加
         p.addLast("aggregator", new HttpObjectAggregator(512 * 1024));
         p.addLast(new HttpServerExpectContinueHandler());
-        p.addLast(new HttpDebugServerHandler());
+        p.addLast(executorGroup, new HttpDebugServerHandler());
     }
 }
